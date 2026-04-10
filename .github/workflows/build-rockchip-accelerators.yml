@@ -41,6 +41,7 @@ jobs:
       ARCH: arm64
       CROSS_COMPILE: aarch64-linux-gnu-
       O: ${{ github.workspace }}/out/rockchip-modules
+      KERNELRELEASE_OVERRIDE: 6.1.0-odroid-arm64
       MODULES: >-
         drivers/video/rockchip/mpp/rk_vcodec.ko
         drivers/rknpu/rknpu.ko
@@ -95,15 +96,18 @@ jobs:
             -e ROCKCHIP_RKNPU_PROC_FS \
             -e ROCKCHIP_RKNPU_FENCE
 
-          make O="$O" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" olddefconfig
+          make O="$O" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" \
+            KERNELRELEASE="$KERNELRELEASE_OVERRIDE" olddefconfig
 
       - name: Prepare generated headers
         run: |
-          make O="$O" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" prepare modules_prepare
+          make O="$O" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" \
+            KERNELRELEASE="$KERNELRELEASE_OVERRIDE" prepare modules_prepare
 
       - name: Build target modules
         run: |
           make -j"$(nproc)" O="$O" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" \
+            KERNELRELEASE="$KERNELRELEASE_OVERRIDE" \
             $MODULES
 
       - name: Package modules as Debian package
@@ -112,7 +116,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          kernelrelease=$(make -s O="$O" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" kernelrelease)
+          kernelrelease=$(make -s O="$O" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" \
+            KERNELRELEASE="$KERNELRELEASE_OVERRIDE" kernelrelease)
           package_root="$RUNNER_TEMP/rockchip-modules-deb"
           package_version="0+git${GITHUB_SHA::12}"
           deb_name="${PACKAGE_NAME}_${package_version}_arm64.deb"
