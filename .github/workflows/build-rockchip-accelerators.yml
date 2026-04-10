@@ -30,6 +30,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build Rockchip modules
@@ -143,6 +146,17 @@ jobs:
           echo "deb_path=$deb_path" >> "$GITHUB_OUTPUT"
           echo "kernelrelease=$kernelrelease" >> "$GITHUB_OUTPUT"
 
+      - name: Prepare release metadata
+        if: success() && github.event_name != 'pull_request'
+        id: release_meta
+        shell: bash
+        run: |
+          release_tag="rockchip-accelerator-modules-${GITHUB_RUN_NUMBER}"
+          release_name="Rockchip accelerator modules ${GITHUB_RUN_NUMBER}"
+
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+          echo "release_name=$release_name" >> "$GITHUB_OUTPUT"
+
       - name: Upload built modules
         if: always()
         uses: actions/upload-artifact@v4
@@ -165,3 +179,18 @@ jobs:
         with:
           name: rockchip-modules-config
           path: ${{ env.O }}/.config
+
+      - name: Publish GitHub release
+        if: success() && github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_meta.outputs.release_tag }}
+          name: ${{ steps.release_meta.outputs.release_name }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          prerelease: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
+          files: |
+            ${{ steps.package_deb.outputs.deb_path }}
+            ${{ env.O }}/drivers/video/rockchip/mpp/rk_vcodec.ko
+            ${{ env.O }}/drivers/rknpu/rknpu.ko
+            ${{ env.O }}/.config
