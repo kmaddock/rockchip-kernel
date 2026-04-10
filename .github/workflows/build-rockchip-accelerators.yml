@@ -32,26 +32,16 @@ concurrency:
 
 jobs:
   build:
-    name: ${{ matrix.target.name }}
+    name: Build Rockchip modules
     runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - name: Rockchip MPP
-            id: mpp
-            modules: drivers/video/rockchip/mpp/rk_vcodec.ko
-            package: rockchip-mpp-modules
-            description: Rockchip MPP kernel module
-          - name: Rockchip RKNPU
-            id: rknpu
-            modules: drivers/rknpu/rknpu.ko
-            package: rockchip-rknpu-modules
-            description: Rockchip RKNPU kernel module
     env:
       ARCH: arm64
       CROSS_COMPILE: aarch64-linux-gnu-
-      O: ${{ github.workspace }}/out/${{ matrix.target.id }}
+      O: ${{ github.workspace }}/out/rockchip-modules
+      MODULES: >-
+        drivers/video/rockchip/mpp/rk_vcodec.ko
+        drivers/rknpu/rknpu.ko
+      PACKAGE_NAME: rockchip-accelerator-modules
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -81,33 +71,26 @@ jobs:
       - name: Enable target-specific config
         shell: bash
         run: |
-          case "${{ matrix.target.id }}" in
-            mpp)
-              scripts/config --file "$O/.config" \
-                -m ROCKCHIP_MPP_SERVICE \
-                -e ROCKCHIP_MPP_OSAL \
-                -e ROCKCHIP_MPP_RKVDEC \
-                -e ROCKCHIP_MPP_RKVDEC2 \
-                -e ROCKCHIP_MPP_RKVENC \
-                -e ROCKCHIP_MPP_RKVENC2 \
-                -e ROCKCHIP_MPP_VDPU1 \
-                -e ROCKCHIP_MPP_VEPU1 \
-                -e ROCKCHIP_MPP_VDPU2 \
-                -e ROCKCHIP_MPP_VEPU2 \
-                -e ROCKCHIP_MPP_IEP2 \
-                -e ROCKCHIP_MPP_JPGDEC \
-                -e ROCKCHIP_MPP_JPGENC \
-                -e ROCKCHIP_MPP_AV1DEC \
-                -e ROCKCHIP_MPP_VDPP
-              ;;
-            rknpu)
-              scripts/config --file "$O/.config" \
-                -m ROCKCHIP_RKNPU \
-                -e ROCKCHIP_RKNPU_DEBUG_FS \
-                -e ROCKCHIP_RKNPU_PROC_FS \
-                -e ROCKCHIP_RKNPU_FENCE
-              ;;
-          esac
+          scripts/config --file "$O/.config" \
+            -m ROCKCHIP_MPP_SERVICE \
+            -e ROCKCHIP_MPP_OSAL \
+            -e ROCKCHIP_MPP_RKVDEC \
+            -e ROCKCHIP_MPP_RKVDEC2 \
+            -e ROCKCHIP_MPP_RKVENC \
+            -e ROCKCHIP_MPP_RKVENC2 \
+            -e ROCKCHIP_MPP_VDPU1 \
+            -e ROCKCHIP_MPP_VEPU1 \
+            -e ROCKCHIP_MPP_VDPU2 \
+            -e ROCKCHIP_MPP_VEPU2 \
+            -e ROCKCHIP_MPP_IEP2 \
+            -e ROCKCHIP_MPP_JPGDEC \
+            -e ROCKCHIP_MPP_JPGENC \
+            -e ROCKCHIP_MPP_AV1DEC \
+            -e ROCKCHIP_MPP_VDPP \
+            -m ROCKCHIP_RKNPU \
+            -e ROCKCHIP_RKNPU_DEBUG_FS \
+            -e ROCKCHIP_RKNPU_PROC_FS \
+            -e ROCKCHIP_RKNPU_FENCE
 
           make O="$O" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" olddefconfig
 
@@ -118,7 +101,7 @@ jobs:
       - name: Build target modules
         run: |
           make -j"$(nproc)" O="$O" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" \
-            ${{ matrix.target.modules }}
+            $MODULES
 
       - name: Package modules as Debian package
         id: package_deb
@@ -127,29 +110,31 @@ jobs:
           set -euo pipefail
 
           kernelrelease=$(make -s O="$O" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" kernelrelease)
-          package_root="$RUNNER_TEMP/${{ matrix.target.id }}-deb"
+          package_root="$RUNNER_TEMP/rockchip-modules-deb"
           package_version="0+git${GITHUB_SHA::12}"
-          deb_name="${{ matrix.target.package }}_${package_version}_arm64.deb"
+          deb_name="${PACKAGE_NAME}_${package_version}_arm64.deb"
           deb_path="$RUNNER_TEMP/$deb_name"
 
           rm -rf "$package_root"
           mkdir -p "$package_root/DEBIAN"
           mkdir -p "$package_root/lib/modules/$kernelrelease/extra"
-          mkdir -p "$package_root/usr/share/doc/${{ matrix.target.package }}"
+          mkdir -p "$package_root/usr/share/doc/$PACKAGE_NAME"
 
-          install -m 0644 "$O/${{ matrix.target.modules }}" \
-            "$package_root/lib/modules/$kernelrelease/extra/"
+          for module in $MODULES; do
+            install -m 0644 "$O/$module" \
+              "$package_root/lib/modules/$kernelrelease/extra/"
+          done
           install -m 0644 "$O/.config" \
-            "$package_root/usr/share/doc/${{ matrix.target.package }}/build.config"
+            "$package_root/usr/share/doc/$PACKAGE_NAME/build.config"
 
           cat > "$package_root/DEBIAN/control" <<EOF
-          Package: ${{ matrix.target.package }}
+          Package: ${PACKAGE_NAME}
           Version: ${package_version}
           Section: kernel
           Priority: optional
           Architecture: arm64
           Maintainer: GitHub Actions <actions@github.com>
-          Description: ${{ matrix.target.description }}
+          Description: Rockchip accelerator kernel modules
            Built from ${GITHUB_REPOSITORY} at ${GITHUB_SHA}.
           EOF
 
@@ -162,19 +147,21 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target.id }}-modules
-          path: ${{ env.O }}/${{ matrix.target.modules }}
+          name: rockchip-modules
+          path: |
+            ${{ env.O }}/drivers/video/rockchip/mpp/rk_vcodec.ko
+            ${{ env.O }}/drivers/rknpu/rknpu.ko
 
       - name: Upload Debian package
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target.id }}-deb
+          name: rockchip-modules-deb
           path: ${{ steps.package_deb.outputs.deb_path }}
 
       - name: Upload resolved config
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target.id }}-config
+          name: rockchip-modules-config
           path: ${{ env.O }}/.config
