@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+/dts-v1/;
+/plugin/;
+
+/*
+ * ODROID-M1 media overlay.
+ *
+ * This enables the Rockchip MPP service and the RK3568 media engines that
+ * back rk_vcodec/iep without replacing the base board DTB.
+ */
+
+&{/mpp-srv} {
+	status = "okay";
+};
+
+&{/vdpu@fdea0400} {
+	status = "okay";
+};
+
+&{/iommu@fdea0800} {
+	status = "okay";
+};
+
+&{/jpegd@fded0000} {
+	status = "okay";
+};
+
+&{/iommu@fded0480} {
+	status = "okay";
+};
+
+&{/vepu@fdee0000} {
+	status = "okay";
+};
+
+&{/iommu@fdee0800} {
+	status = "okay";
+};
+
+&{/iep@fdef0000} {
+	status = "okay";
+};
+
+&{/iommu@fdef0800} {
+	status = "okay";
+};
+
+&{/rkvenc@fdf40000} {
+	status = "okay";
+};
+
+&{/iommu@fdf40f00} {
+	status = "okay";
+};
+
+&{/rkvdec@fdf80200} {
+	status = "okay";
+};
+
+&{/iommu@fdf80800} {
+	status = "okay";
+};

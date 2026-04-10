@@ -7,6 +7,8 @@ on:
       - Kconfig
       - Makefile
       - config-6.1.0-odroid-arm64
+      - arch/arm64/boot/dts/rockchip/Makefile
+      - arch/arm64/boot/dts/rockchip/rk3568-odroid-m1-mpp.dts
       - drivers/Kconfig
       - drivers/rknpu/**
       - drivers/video/rockchip/**
@@ -20,6 +22,8 @@ on:
       - Kconfig
       - Makefile
       - config-6.1.0-odroid-arm64
+      - arch/arm64/boot/dts/rockchip/Makefile
+      - arch/arm64/boot/dts/rockchip/rk3568-odroid-m1-mpp.dts
       - drivers/Kconfig
       - drivers/rknpu/**
       - drivers/video/rockchip/**
@@ -47,8 +51,9 @@ jobs:
         drivers/video/rockchip/iep/iep.ko
         drivers/video/rockchip/rga3/rga3.ko
         drivers/rknpu/rknpu.ko
-      DTBS: >-
-        rockchip/rk3568-odroid-m1.dtb
+      DTBOS: >-
+        rockchip/rk3568-odroid-m1-mpp.dtbo
+      DTBO_INSTALL_DIR: /boot/dtbs/6.1.0-odroid-arm64/rockchip/overlays/odroidm1
       PACKAGE_NAME: rockchip-accelerator-modules
     steps:
       - name: Check out source
@@ -123,11 +128,11 @@ jobs:
             KERNELRELEASE="$KERNELRELEASE_OVERRIDE" \
             $MODULES
 
-      - name: Build target dtb
+      - name: Build target overlay
         run: |
           make -j"$(nproc)" O="$O" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" \
             KERNELRELEASE="$KERNELRELEASE_OVERRIDE" \
-            $DTBS
+            $DTBOS
 
       - name: Package modules as Debian package
         id: package_deb
@@ -144,11 +149,16 @@ jobs:
           rm -rf "$package_root"
           mkdir -p "$package_root/DEBIAN"
           mkdir -p "$package_root/lib/modules/$kernelrelease/extra"
+          mkdir -p "$package_root${DTBO_INSTALL_DIR}"
           mkdir -p "$package_root/usr/share/doc/$PACKAGE_NAME"
 
           for module in $MODULES; do
             install -m 0644 "$O/$module" \
               "$package_root/lib/modules/$kernelrelease/extra/"
+          done
+          for dtbo in $DTBOS; do
+            install -m 0644 "$O/$dtbo" \
+              "$package_root${DTBO_INSTALL_DIR}/"
           done
           install -m 0644 "$O/.config" \
             "$package_root/usr/share/doc/$PACKAGE_NAME/build.config"
@@ -160,7 +170,7 @@ jobs:
           Priority: optional
           Architecture: arm64
           Maintainer: GitHub Actions <actions@github.com>
-          Description: Rockchip accelerator kernel modules
+          Description: Rockchip accelerator kernel modules and ODROID-M1 overlay
            Built from ${GITHUB_REPOSITORY} at ${GITHUB_SHA}.
           EOF
 
@@ -191,12 +201,12 @@ jobs:
             ${{ env.O }}/drivers/video/rockchip/rga3/rga3.ko
             ${{ env.O }}/drivers/rknpu/rknpu.ko
 
-      - name: Upload built dtb
+      - name: Upload built overlay
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: rockchip-dtb
-          path: ${{ env.O }}/arch/arm64/boot/dts/rockchip/rk3568-odroid-m1.dtb
+          name: rockchip-overlay
+          path: ${{ env.O }}/arch/arm64/boot/dts/rockchip/rk3568-odroid-m1-mpp.dtbo
 
       - name: Upload Debian package
         if: always()
@@ -227,5 +237,5 @@ jobs:
             ${{ env.O }}/drivers/video/rockchip/iep/iep.ko
             ${{ env.O }}/drivers/video/rockchip/rga3/rga3.ko
             ${{ env.O }}/drivers/rknpu/rknpu.ko
-            ${{ env.O }}/arch/arm64/boot/dts/rockchip/rk3568-odroid-m1.dtb
+            ${{ env.O }}/arch/arm64/boot/dts/rockchip/rk3568-odroid-m1-mpp.dtbo
             ${{ env.O }}/.config
