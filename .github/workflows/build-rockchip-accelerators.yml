@@ -1,0 +1,130 @@
+name: Build Rockchip Accelerator Drivers
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/build-rockchip-accelerators.yml
+      - Kconfig
+      - Makefile
+      - config-6.1.0-odroid-arm64
+      - drivers/Kconfig
+      - drivers/rknpu/**
+      - drivers/video/rockchip/**
+      - scripts/config
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - .github/workflows/build-rockchip-accelerators.yml
+      - Kconfig
+      - Makefile
+      - config-6.1.0-odroid-arm64
+      - drivers/Kconfig
+      - drivers/rknpu/**
+      - drivers/video/rockchip/**
+      - scripts/config
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.target.name }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - name: Rockchip MPP
+            id: mpp
+            modules: drivers/video/rockchip/mpp/rk_vcodec.ko
+          - name: Rockchip RKNPU
+            id: rknpu
+            modules: drivers/rknpu/rknpu.ko
+    env:
+      ARCH: arm64
+      CROSS_COMPILE: aarch64-linux-gnu-
+      O: ${{ github.workspace }}/out/${{ matrix.target.id }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bc \
+            bison \
+            ccache \
+            flex \
+            gcc-aarch64-linux-gnu \
+            libc6-dev-arm64-cross \
+            libelf-dev \
+            libssl-dev \
+            make \
+            pahole
+
+      - name: Prepare base config
+        run: |
+          mkdir -p "$O"
+          chmod +x scripts/config
+          cp config-6.1.0-odroid-arm64 "$O/.config"
+
+      - name: Enable target-specific config
+        shell: bash
+        run: |
+          case "${{ matrix.target.id }}" in
+            mpp)
+              scripts/config --file "$O/.config" \
+                -m ROCKCHIP_MPP_SERVICE \
+                -e ROCKCHIP_MPP_OSAL \
+                -e ROCKCHIP_MPP_RKVDEC \
+                -e ROCKCHIP_MPP_RKVDEC2 \
+                -e ROCKCHIP_MPP_RKVENC \
+                -e ROCKCHIP_MPP_RKVENC2 \
+                -e ROCKCHIP_MPP_VDPU1 \
+                -e ROCKCHIP_MPP_VEPU1 \
+                -e ROCKCHIP_MPP_VDPU2 \
+                -e ROCKCHIP_MPP_VEPU2 \
+                -e ROCKCHIP_MPP_IEP2 \
+                -e ROCKCHIP_MPP_JPGDEC \
+                -e ROCKCHIP_MPP_JPGENC \
+                -e ROCKCHIP_MPP_AV1DEC \
+                -e ROCKCHIP_MPP_VDPP
+              ;;
+            rknpu)
+              scripts/config --file "$O/.config" \
+                -m ROCKCHIP_RKNPU \
+                -e ROCKCHIP_RKNPU_DEBUG_FS \
+                -e ROCKCHIP_RKNPU_PROC_FS \
+                -e ROCKCHIP_RKNPU_FENCE
+              ;;
+          esac
+
+          make O="$O" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" olddefconfig
+
+      - name: Prepare generated headers
+        run: |
+          make O="$O" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" prepare modules_prepare
+
+      - name: Build target modules
+        run: |
+          make -j"$(nproc)" O="$O" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" \
+            ${{ matrix.target.modules }}
+
+      - name: Upload built modules
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target.id }}-modules
+          path: ${{ env.O }}/${{ matrix.target.modules }}
+
+      - name: Upload resolved config
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target.id }}-config
+          path: ${{ env.O }}/.config
