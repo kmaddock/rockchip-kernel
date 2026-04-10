@@ -75,7 +75,12 @@ jobs:
       - name: Enable target-specific config
         shell: bash
         run: |
+          # Keep module ABI compatible with kernels that do not export
+          # Rockchip vendor PM/IOMMU and dmabuf cache symbols.
           scripts/config --file "$O/.config" \
+            -d ROCKCHIP_IOMMU \
+            -d ROCKCHIP_PM_DOMAINS \
+            -d DMABUF_CACHE \
             -m ROCKCHIP_MPP_SERVICE \
             -e ROCKCHIP_MPP_OSAL \
             -e ROCKCHIP_MPP_RKVDEC \
@@ -116,8 +121,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          kernelrelease=$(make -s O="$O" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" \
-            KERNELRELEASE="$KERNELRELEASE_OVERRIDE" kernelrelease)
+          kernelrelease="$KERNELRELEASE_OVERRIDE"
           package_root="$RUNNER_TEMP/rockchip-modules-deb"
           package_version="0+git${GITHUB_SHA::12}"
           deb_name="${PACKAGE_NAME}_${package_version}_arm64.deb"
