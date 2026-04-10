@@ -47,6 +47,8 @@ jobs:
         drivers/video/rockchip/iep/iep.ko
         drivers/video/rockchip/rga3/rga3.ko
         drivers/rknpu/rknpu.ko
+      DTBS: >-
+        arch/arm64/boot/dts/rockchip/rk3568-odroid-m1.dtb
       PACKAGE_NAME: rockchip-accelerator-modules
     steps:
       - name: Check out source
@@ -121,6 +123,12 @@ jobs:
             KERNELRELEASE="$KERNELRELEASE_OVERRIDE" \
             $MODULES
 
+      - name: Build target dtb
+        run: |
+          make -j"$(nproc)" O="$O" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" \
+            KERNELRELEASE="$KERNELRELEASE_OVERRIDE" \
+            $DTBS
+
       - name: Package modules as Debian package
         id: package_deb
         shell: bash
@@ -183,6 +191,13 @@ jobs:
             ${{ env.O }}/drivers/video/rockchip/rga3/rga3.ko
             ${{ env.O }}/drivers/rknpu/rknpu.ko
 
+      - name: Upload built dtb
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rockchip-dtb
+          path: ${{ env.O }}/arch/arm64/boot/dts/rockchip/rk3568-odroid-m1.dtb
+
       - name: Upload Debian package
         if: always()
         uses: actions/upload-artifact@v4
@@ -212,4 +227,5 @@ jobs:
             ${{ env.O }}/drivers/video/rockchip/iep/iep.ko
             ${{ env.O }}/drivers/video/rockchip/rga3/rga3.ko
             ${{ env.O }}/drivers/rknpu/rknpu.ko
+            ${{ env.O }}/arch/arm64/boot/dts/rockchip/rk3568-odroid-m1.dtb
             ${{ env.O }}/.config
