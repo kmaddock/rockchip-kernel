@@ -44,6 +44,8 @@ jobs:
       KERNELRELEASE_OVERRIDE: 6.1.0-odroid-arm64
       MODULES: >-
         drivers/video/rockchip/mpp/rk_vcodec.ko
+        drivers/video/rockchip/iep/iep.ko
+        drivers/video/rockchip/rga3/rga3.ko
         drivers/rknpu/rknpu.ko
       PACKAGE_NAME: rockchip-accelerator-modules
     steps:
@@ -81,6 +83,10 @@ jobs:
             -d ROCKCHIP_IOMMU \
             -d ROCKCHIP_PM_DOMAINS \
             -d DMABUF_CACHE \
+            -d ROCKCHIP_RGA \
+            -d ROCKCHIP_RGA2 \
+            -m ROCKCHIP_MULTI_RGA \
+            -m IEP \
             -m ROCKCHIP_MPP_SERVICE \
             -e ROCKCHIP_MPP_OSAL \
             -e ROCKCHIP_MPP_RKVDEC \
@@ -173,6 +179,8 @@ jobs:
           name: rockchip-modules
           path: |
             ${{ env.O }}/drivers/video/rockchip/mpp/rk_vcodec.ko
+            ${{ env.O }}/drivers/video/rockchip/iep/iep.ko
+            ${{ env.O }}/drivers/video/rockchip/rga3/rga3.ko
             ${{ env.O }}/drivers/rknpu/rknpu.ko
 
       - name: Upload Debian package
@@ -201,5 +209,7 @@ jobs:
           files: |
             ${{ steps.package_deb.outputs.deb_path }}
             ${{ env.O }}/drivers/video/rockchip/mpp/rk_vcodec.ko
+            ${{ env.O }}/drivers/video/rockchip/iep/iep.ko
+            ${{ env.O }}/drivers/video/rockchip/rga3/rga3.ko
             ${{ env.O }}/drivers/rknpu/rknpu.ko
             ${{ env.O }}/.config
