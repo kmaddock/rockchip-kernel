@@ -157,7 +157,7 @@ jobs:
               "$package_root/lib/modules/$kernelrelease/extra/"
           done
           for dtbo in $DTBOS; do
-            install -m 0644 "$O/$dtbo" \
+            install -m 0644 "$O/arch/arm64/boot/dts/$dtbo" \
               "$package_root${DTBO_INSTALL_DIR}/"
           done
           install -m 0644 "$O/.config" \
