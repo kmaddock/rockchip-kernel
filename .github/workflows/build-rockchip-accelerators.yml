@@ -41,9 +41,13 @@ jobs:
           - name: Rockchip MPP
             id: mpp
             modules: drivers/video/rockchip/mpp/rk_vcodec.ko
+            package: rockchip-mpp-modules
+            description: Rockchip MPP kernel module
           - name: Rockchip RKNPU
             id: rknpu
             modules: drivers/rknpu/rknpu.ko
+            package: rockchip-rknpu-modules
+            description: Rockchip RKNPU kernel module
     env:
       ARCH: arm64
       CROSS_COMPILE: aarch64-linux-gnu-
@@ -59,6 +63,7 @@ jobs:
             bc \
             bison \
             ccache \
+            dpkg-dev \
             flex \
             gcc-aarch64-linux-gnu \
             libc6-dev-arm64-cross \
@@ -115,12 +120,57 @@ jobs:
           make -j"$(nproc)" O="$O" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" \
             ${{ matrix.target.modules }}
 
+      - name: Package modules as Debian package
+        id: package_deb
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          kernelrelease=$(make -s O="$O" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" kernelrelease)
+          package_root="$RUNNER_TEMP/${{ matrix.target.id }}-deb"
+          package_version="0+git${GITHUB_SHA::12}"
+          deb_name="${{ matrix.target.package }}_${package_version}_arm64.deb"
+          deb_path="$RUNNER_TEMP/$deb_name"
+
+          rm -rf "$package_root"
+          mkdir -p "$package_root/DEBIAN"
+          mkdir -p "$package_root/lib/modules/$kernelrelease/extra"
+          mkdir -p "$package_root/usr/share/doc/${{ matrix.target.package }}"
+
+          install -m 0644 "$O/${{ matrix.target.modules }}" \
+            "$package_root/lib/modules/$kernelrelease/extra/"
+          install -m 0644 "$O/.config" \
+            "$package_root/usr/share/doc/${{ matrix.target.package }}/build.config"
+
+          cat > "$package_root/DEBIAN/control" <<EOF
+          Package: ${{ matrix.target.package }}
+          Version: ${package_version}
+          Section: kernel
+          Priority: optional
+          Architecture: arm64
+          Maintainer: GitHub Actions <actions@github.com>
+          Description: ${{ matrix.target.description }}
+           Built from ${GITHUB_REPOSITORY} at ${GITHUB_SHA}.
+          EOF
+
+          dpkg-deb --build --root-owner-group "$package_root" "$deb_path"
+
+          echo "deb_path=$deb_path" >> "$GITHUB_OUTPUT"
+          echo "kernelrelease=$kernelrelease" >> "$GITHUB_OUTPUT"
+
       - name: Upload built modules
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target.id }}-modules
           path: ${{ env.O }}/${{ matrix.target.modules }}
+
+      - name: Upload Debian package
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target.id }}-deb
+          path: ${{ steps.package_deb.outputs.deb_path }}
 
       - name: Upload resolved config
         if: always()
