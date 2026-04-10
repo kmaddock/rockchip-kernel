@@ -49,7 +49,7 @@ jobs:
       MODULES: >-
         drivers/video/rockchip/mpp/rk_vcodec.ko
         drivers/video/rockchip/iep/iep.ko
-        drivers/video/rockchip/rga3/rga3.ko
+        drivers/video/rockchip/rga2/rga2.ko
         drivers/rknpu/rknpu.ko
       DTBOS: >-
         rockchip/rk3568-odroid-m1-mpp.dtbo
@@ -91,8 +91,8 @@ jobs:
             -d ROCKCHIP_PM_DOMAINS \
             -d DMABUF_CACHE \
             -d ROCKCHIP_RGA \
-            -d ROCKCHIP_RGA2 \
-            -m ROCKCHIP_MULTI_RGA \
+            -d ROCKCHIP_MULTI_RGA \
+            -m ROCKCHIP_RGA2 \
             -m IEP \
             -m ROCKCHIP_MPP_SERVICE \
             -e ROCKCHIP_MPP_OSAL \
@@ -198,7 +198,7 @@ jobs:
           path: |
             ${{ env.O }}/drivers/video/rockchip/mpp/rk_vcodec.ko
             ${{ env.O }}/drivers/video/rockchip/iep/iep.ko
-            ${{ env.O }}/drivers/video/rockchip/rga3/rga3.ko
+            ${{ env.O }}/drivers/video/rockchip/rga2/rga2.ko
             ${{ env.O }}/drivers/rknpu/rknpu.ko
 
       - name: Upload built overlay
@@ -235,7 +235,7 @@ jobs:
             ${{ steps.package_deb.outputs.deb_path }}
             ${{ env.O }}/drivers/video/rockchip/mpp/rk_vcodec.ko
             ${{ env.O }}/drivers/video/rockchip/iep/iep.ko
-            ${{ env.O }}/drivers/video/rockchip/rga3/rga3.ko
+            ${{ env.O }}/drivers/video/rockchip/rga2/rga2.ko
             ${{ env.O }}/drivers/rknpu/rknpu.ko
             ${{ env.O }}/arch/arm64/boot/dts/rockchip/rk3568-odroid-m1-mpp.dtbo
             ${{ env.O }}/.config
