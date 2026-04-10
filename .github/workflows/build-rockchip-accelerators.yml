@@ -48,7 +48,7 @@ jobs:
         drivers/video/rockchip/rga3/rga3.ko
         drivers/rknpu/rknpu.ko
       DTBS: >-
-        arch/arm64/boot/dts/rockchip/rk3568-odroid-m1.dtb
+        rk3568-odroid-m1.dtb
       PACKAGE_NAME: rockchip-accelerator-modules
     steps:
       - name: Check out source
